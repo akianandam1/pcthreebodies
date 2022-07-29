@@ -1,141 +1,78 @@
+from ModelVisuals import optimize
 import torch
-from TorchNumericalSolver import get_full_state
+from nhd import data
 
 
-# Function to determine whether gpu is available or not
-def get_default_device():
-    """Pick GPU if available, else CPU"""
-    if torch.cuda.is_available():
-        return torch.device('cuda')
-    else:
-        return torch.device('cpu')
-
-
-device = get_default_device()
-
-
-# Automatically puts data onto the default device
-def to_device(data, device):
-    """Move tensor(s) to chosen device"""
-    if isinstance(data, (list,tuple)):
-        return [to_device(x, device) for x in data]
-    return data.to(device, non_blocking=True)
-
-
-# Starting initial vector
-#input_vec = torch.tensor([-1, 0, 0, 1, 0, 0, 0, 0, 0, 0.347111, 0.532728, 0, 0.347111, 0.532728, 0, -2*0.347111, -2*0.532728, 0, 35, 35, 35], requires_grad = True).to(device)
-input_vec = torch.tensor([-1, 0, 0, 1, 0, 0, 0, 0, 0, 0.347111, 0.532728, 0, 0.347111, 0.532728, 0, -2*0.347111, -2*0.532728, 0, 35.7071, 35.7071, 35.7071], requires_grad = True).to(device)
-
-def forward(input_vec):
-    return get_full_state(input_vec, 0.001, 5)
-
-
-# Compares two states and returns a numerical value rating how far apart the two states in the three
-# body problem are to each other. Takes in two tensor states and returns tensor of value of distance rating
-# The higher the score, the less similar they are
-def nearest_position(particle, state1, state2):
-    mse = torch.nn.L1Loss()
-    if particle == 1:
-        return mse(state1[:3], state2[:3]) + mse(state1[9:12], state2[9:12])
-    elif particle == 2:
-        return mse(state1[3:6], state2[3:6]) + mse(state1[12:15], state2[12:15])
-    elif particle == 3:
-        return mse(state1[6:9], state2[6:9]) + mse(state1[15:18], state2[15:18])
-    else:
-        print("bad input")
-
-
-# Finds the most similar state to the initial position in a data set
-def nearest_position_state(particle, state, data_set, min, max):
-    i = min
-    max_val = torch.tensor([100000000]).to(device)
-    index = -1
-    while i < max:
-        if nearest_position(particle, state, data_set[i]).item() < max_val.item():
-            index = i
-            max_val = nearest_position(particle, state, data_set[i])
-
-        i += 1
-    print(f"Index: {index}")
-    return index
+# Perturbs input vector using normal distribution
+# takes in float standard deviation
+# Requires floats
+def perturb(vec, std):
+    return torch.tensor([torch.normal(mean=vec[0], std=torch.tensor(std)),
+                         torch.normal(mean=vec[1], std=torch.tensor(std)),
+                         0.0,
+                         torch.normal(mean=vec[3], std=torch.tensor(std)),
+                         torch.normal(mean=vec[4], std=torch.tensor(std)),
+                         0.0,
+                         torch.normal(mean=vec[6], std=torch.tensor(std)),
+                         torch.normal(mean=vec[7], std=torch.tensor(std)),
+                         0.0,
+                         torch.normal(mean=vec[9], std=torch.tensor(std)),
+                         torch.normal(mean=vec[10], std=torch.tensor(std)),
+                         0.0,
+                         torch.normal(mean=vec[12], std=torch.tensor(std)),
+                         torch.normal(mean=vec[13], std=torch.tensor(std)),
+                         0.0,
+                         torch.normal(mean=vec[15], std=torch.tensor(std)),
+                         torch.normal(mean=vec[16], std=torch.tensor(std)),
+                         0.0,], requires_grad = True)
 
 
 
-# def nearest_two_states(data_set, min):
-#     i = 0
-#     first_index = -1
-#     second_index=-1
-#     max_val = torch.tensor([100000000]).to(device)
-#     while i < (len(data_set)/2 + 1):
-#         print(i)
-#         if nearest_position(data_set[i], data_set[nearest_position_state(data_set[i], data_set, i + min, len(data_set))]) < max_val:
-#             first_index = i
-#             second_index = nearest_position_state(data_set[i], data_set, i + min, len(data_set))
-#             max_val = nearest_position(data_set[i], data_set[nearest_position_state(data_set[i], data_set, i + min, len(data_set))])
-#         i+=1
-#     print(f"Index: {first_index}, {second_index}")
-#     return torch.tensor([first_index,second_index]).to(device)
+# beginning tensor([-1.0018,  0.0289,  0.0000,  0.9649,  0.0147,  0.0000,  0.0129,  0.0171,
+#          0.0000,  0.4700,  0.2530,  0.0000,  0.4089,  0.2995,  0.0000, -1.1218,
+#         -0.6996,  0.0000,  1.0000,  1.0000,  0.7500], grad_fn=<CatBackward0>)
+
+# for input_set in data:
+#     m_1 = float(input_set[0])
+#     m_2 = float(input_set[1])
+#     m_3 = float(input_set[2])
+#     x_1 = float(input_set[3])
+#     v_1 = float(input_set[4])
+#     v_2 = float(input_set[5])
+#     T = float(input_set[6])
+#     vec = torch.tensor([x_1,0,0,1,0,0,0,0,0, 0, v_1, 0, 0, v_2, 0, 0, -(m_1*v_1 + m_2*v_2)/m_3, 0], requires_grad = True)
+#     print(vec)
+#     vec = perturb(vec, .02)
+#     optimize(vec, m_1, m_2, m_3, lr = .0001, num_epochs = 90, max_period=int(T+2), video_folder = "NHD")
+
+m_1 = 1
+m_2 = 1
+m_3 = 0.75
+
+v_1 = 0.2827020949
+v_2 = 0.3272089716
+T = 10.9633031497
+# vec = torch.tensor([-1,0,0,1,0,0,0,0,0,v_1, v_2, 0, v_1, v_2, 0, -2*v_1/m_3, -2*v_2/m_3, 0], requires_grad = True)
+# vec = torch.tensor([-1,0,0, 1,0,0, 0,0,0, v_1,v_2,0, v_1,v_2,0, -2*v_1,-2*v_2,0], requires_grad=True)
+
+# FIGURE 1 vec = torch.tensor([-1.0018,  0.0289,  0.0000,  0.9649,  0.0147,  0.0000,  0.0129,  0.0171,
+#          0.0000,  0.4700,  0.2530,  0.0000,  0.4089,  0.2995,  0.0000, -1.1218,
+#         -0.6996,  0.0000], requires_grad = True)
+
+
+vec = torch.tensor([-0.9937,  0.0193,  0.0000,  0.9634,  0.0237,  0.0000,  0.0061,  0.0221,
+         0.0000,  0.4581,  0.2431,  0.0000,  0.4085,  0.2965,  0.0000, -1.1173,
+        -0.6903,  0.0000], requires_grad = True)
+
+# vec = perturb(vec, .01)
+optimize(vec, m_1, m_2, m_3, lr = .0001, num_epochs = 40, max_period=int(T+2), opt_func=torch.optim.Adagrad)
+# optimize(vec, m_1, m_2, m_3, lr = .00001, num_epochs = 90, max_period=int(T+2), opt_func=torch.optim.SGD)
+
+# vec = torch.tensor([-0.9957,  0.0225,  0.0000,  0.9649,  0.0178,  0.0000,  0.0070,  0.0205,
+#          0.0000,  0.4640,  0.2438,  0.0000,  0.4100,  0.2989,  0.0000, -1.1197,
+#         -0.6929,  0.0000], requires_grad = True)
 #
 #
-# data_set = forward(input_vec)
-#
-#
-# print(nearest_two_states(data_set, 500))
+# vec = vec = perturb(vec, .02)
 
-
-def compare_states(state1, state2):
-    mse = torch.nn.MSELoss()
-    return mse(state1[:18], state2[:18])
-
-
-def fit(epochs, lr, input_vec):
-    i = 0
-    while i < epochs:
-
-        data_set = forward(input_vec)
-        first_particle_state = data_set[nearest_position_state(1, data_set[0],data_set, 300, len(data_set))]
-        second_particle_state = data_set[nearest_position_state(2, data_set[0], data_set, 300, len(data_set))]
-        third_particle_state = data_set[nearest_position_state(3, data_set[0], data_set, 300, len(data_set))]
-
-        #first_state_index = nearest_position_state(data_set[0],data_set, 300, len(data_set))
-        # first_state = data_set[first_state_index]
-        # first_state.retain_grad()
-        # second_state_index = most_similar_state(data_set, int(1.8*first_state_index), int(2.2*first_state_index))
-        # second_state = data_set[second_state_index]
-        # second_state.retain_grad()
-        # third_state_index = most_similar_state(data_set, int(2.6*first_state_index), int(3.4*first_state_index))
-        # third_state = data_set[third_state_index]
-        # third_state.retain_grad()
-
-        loss = nearest_position(1, data_set[0], first_particle_state) + nearest_position(2, data_set[0], second_particle_state) + nearest_position(3, data_set[0], third_particle_state)
-        print(" ")
-        print(loss)
-        input_vec.retain_grad()
-        #loss.retain_grad()
-        loss.backward()
-        print(input_vec.grad)
-        # Updates input vector
-
-        input_vec -= input_vec.grad * lr
-        print(input_vec)
-        #print(input_vec.grad)
-        # Zeroes gradient
-        input_vec.grad.zero_()
-
-        # optimizer.step()
-        # optimizer.zero_grad()
-        print(f"Epoch:{i}")
-        print(" ")
-        i += 1
-
-
-print(input_vec)
-a=1000
-b=.00001
-fit(a, b, input_vec)
-with open("mainoutput.txt", "a") as file:
-    file.write("\n")
-    file.write(f"{a}, {b}: \n")
-    file.write(str(input_vec))
-print(input_vec)
 
