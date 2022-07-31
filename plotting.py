@@ -5,6 +5,8 @@ import matplotlib.animation as animation
 import matplotlib as mpl
 import torch
 import time
+from datetime import datetime
+from nhd import data
 
 mpl.rcParams['animation.ffmpeg_path'] = r'D:\MAIN\Python37\Lib\site-packages\ffmpeg-5.0-essentials_build\bin\ffmpeg.exe'
 
@@ -13,15 +15,31 @@ mpl.rcParams['animation.ffmpeg_path'] = r'D:\MAIN\Python37\Lib\site-packages\ffm
 # full_vec = torch.cat(
 #     [torch.tensor([1, 0, 0, 0, 0, 0, 0, 1, 0]), input_vec, torch.tensor([0, 0, 0, 0, 0, 0, 1, 1, 1])])
 #full_vec = torch.tensor([-1, 0, 0, 1, 0, 0, 0, 0, 0, 0.347111, 0.532728, 0, 0.347111, 0.532728, 0, -2*0.347111, -2*0.532728, 0, 1, 1, 1])
-m_1 = .3916
-m_2 = .8341
-m_3 = 1
-x_1 = -1.21503
-v_1 = -1.00328
-v_2 = -.53749
+# m_1 = .3916
+# m_2 = .8341
+# m_3 = 1
+# x_1 = -1.21503
+# v_1 = -1.00328
+# v_2 = -.53749
+input_set = data[0]
+m_1 = float(input_set[0])
+m_2 = float(input_set[1])
+m_3 = float(input_set[2])
+x_1 = float(input_set[3])
+v_1 = float(input_set[4])
+v_2 = float(input_set[5])
+T = float(input_set[6])
+full_vec = torch.tensor([x_1, 0, 0, 1, 0, 0, 0, 0, 0, 0, v_1, 0, 0, v_2, 0, 0, -(m_1 * v_1 + m_2 * v_2) / m_3, 0, m_1, m_2, m_3],
+                   requires_grad = True)
 
-full_vec = torch.tensor([x_1, 0, 0, 1, 0, 0, 0, 0, 0, 0, v_1, 0, 0, v_2, 0, 0, -(m_1*v_1+m_2*v_2)/m_3, 0, m_1, m_2, m_3], requires_grad=True)
+# m_1 = 1
+# m_2 = 1
+# m_3 = 0.5
+# v_1 = 0.2869236336
+# v_2 = 0.0791847624
+# #full_vec = torch.tensor([x_1, 0, 0, 1, 0, 0, 0, 0, 0, 0, v_1, 0, 0, v_2, 0, 0, -(m_1*v_1+m_2*v_2)/m_3, 0, m_1, m_2, m_3], requires_grad=True)
 
+#full_vec = torch.tensor([-1,0,0,1,0,0,0,0,0,v_1, v_2, 0, v_1, v_2, 0, -2*v_1/m_3, -2*v_2/m_3, 0, m_1, m_2, m_3], requires_grad = True)
 
 
 # full_vec = torch.tensor([ 1.5305e+00,  7.2942e-01, -7.9352e-02, -1.7411e-01,  4.6347e-01,
@@ -36,7 +54,7 @@ full_vec = torch.tensor([x_1, 0, 0, 1, 0, 0, 0, 0, 0, 0, v_1, 0, 0, v_2, 0, 0, -
 # print(f"Euler: {end-start}")
 start = time.time()
 print("Getting...")
-runge_sol = get_full_state(full_vec, .001, 20).detach().numpy()
+runge_sol = get_full_state(full_vec, .00025, int(T+2)).detach().numpy()
 end = time.time()
 print(f"Runge Kutta: {end-start}")
 
@@ -130,13 +148,18 @@ def update(i):
     return runge_particle1, runge_particle2, runge_particle3, #euler_particle1, euler_particle2, euler_particle3,model_particle1, model_particle2, model_particle3, model_p1, model_p2, model_p3
 
 
-
-
+video_folder="AfterJuly18"
+now = str(datetime.now())
+video_title = now[:now.index(".")]
+video_title = video_title[:video_title.index(" ")] + "-" + video_title[video_title.index(" ") + 1:]
+video_title = video_title[:video_title.index(":")] + "-" + video_title[video_title.index(":") + 1:]
+video_title = video_title[:video_title.index(":")] + "-" + video_title[video_title.index(":") + 1:]
 
 writer = animation.FFMpegWriter(fps=100)
-ani = animation.FuncAnimation(fig, update, frames=2_000, interval=25, blit=True)
-ani.save(r"D:\Main\PycharmProjects\PeriodicThreeBodies\Videos\July12\a1.mp4", writer=writer)
-
+ani = animation.FuncAnimation(fig, update, frames=int(T+2)*400, interval=25, blit=True)
+#ani.save(r"D:\Main\PycharmProjects\PeriodicThreeBodies\Videos\July12\a1.mp4", writer=writer)
+ani.save(f"D:\\Main\\PycharmProjects\\PeriodicThreeBodies\\Videos\\{video_folder}\\a{video_title}.mp4",
+              writer = writer)
 
 second = time.time()
 plot_time = second-first
